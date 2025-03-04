@@ -1,0 +1,1783 @@
+Test Data Generator - Technical Reference Guide
+
+This technical reference document provides specific details about the parameters, functions, data types, and implementation details of the Test Data Generator application to ensure accurate understanding of the existing codebase.
+
+## Entity Classes and Properties
+
+### Template Entity
+```java
+@Entity
+@Table(name = "templates")
+public class Template {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false)
+    private String name;
+    
+    @Column(length = 1000)
+    private String description;
+    
+    @OneToMany(mappedBy = "template", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ColumnDefinition> columnDefinitions = new ArrayList<>();
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private OutputFormat defaultOutputFormat = OutputFormat.CSV;
+    
+    @Column(nullable = false)
+    private Integer defaultRowCount = 100;
+    
+    @Column(nullable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+    
+    @Column(nullable = false)
+    private LocalDateTime updatedAt = LocalDateTime.now();
+    
+    @Column(nullable = false)
+    private String createdBy = "system";
+    
+    public enum OutputFormat {
+        CSV, JSON, XML
+    }
+    
+    // Getters, setters, and relationship methods
+}
+```
+
+### ColumnDefinition Entity
+```java
+@Entity
+@Table(name = "column_definitions")
+public class ColumnDefinition {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "template_id", nullable = false)
+    private Template template;
+    
+    @Column(nullable = false)
+    private String name;
+    
+    @Column(nullable = false)
+    private String type;
+    
+    @Column(name = "sequence_number", nullable = false)
+    private Integer sequenceNumber;
+    
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+        name = "column_constraints",
+        joinColumns = @JoinColumn(name = "column_definition_id")
+    )
+    @MapKeyColumn(name = "constraint_name")
+    @Column(name = "constraint_value")
+    private Map<String, String> constraints = new HashMap<>();
+    
+    @Column(name = "is_nullable", nullable = false)
+    private Boolean isNullable = false;
+    
+    @Column(name = "null_probability")
+    private Double nullProbability = 0.0;
+    
+    // Getters and setters
+}
+```
+
+### GenerationSchedule Entity
+```java
+@Entity
+@Table(name = "generation_schedules")
+public class GenerationSchedule {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "template_id", nullable = false)
+    private Template template;
+    
+    @Column(nullable = false)
+    private String name;
+    
+    @Column(length = 1000)
+    private String description;
+    
+    @Column(name = "row_count", nullable = false)
+    private Integer rowCount;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "output_format", nullable = false)
+    private Template.OutputFormat outputFormat;
+    
+    @Column(name = "next_run_time")
+    private LocalDateTime nextRunTime;
+    
+    @Column(name = "cron_expression")
+    private String cronExpression;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Status status = Status.CREATED;
+    
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+    
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt = LocalDateTime.now();
+    
+    @Column(name = "created_by", nullable = false)
+    private String createdBy = "system";
+    
+    @Column(name = "last_run_time")
+    private LocalDateTime lastRunTime;
+    
+    @Column(name = "last_run_result")
+    private String lastRunResult;
+    
+    public enum Status {
+        CREATED, ACTIVE, PAUSED, COMPLETED, ERROR
+    }
+    
+    // Getters and setters
+}
+```
+
+## DTO Classes
+
+### TemplateDto
+```java
+public class TemplateDto {
+    private Long id;
+    
+    @NotBlank(message = "Template name is required")
+    private String name;
+    
+    private String description;
+    
+    @NotEmpty(message = "At least one column definition is required")
+    @Valid
+    private List<ColumnDefinitionDto> columnDefinitions = new ArrayList<>();
+    
+    @NotNull(message = "Default output format is required")
+    private Template.OutputFormat defaultOutputFormat;
+    
+    @NotNull(message = "Default row count is required")
+    @Min(value = 1, message = "Default row count must be at least 1")
+    private Integer defaultRowCount;
+    
+    private LocalDateTime createdAt;
+    
+    private LocalDateTime updatedAt;
+    
+    private String createdBy;
+    
+    // Getters and setters
+}
+```
+
+### ColumnDefinitionDto
+```java
+public class ColumnDefinitionDto {
+    private Long id;
+    
+    @NotBlank(message = "Column name is required")
+    private String name;
+    
+    @NotBlank(message = "Column type is required")
+    private String type;
+    
+    @NotNull(message = "Sequence number is required")
+    private Integer sequenceNumber;
+    
+    private Map<String, Object> constraints = new HashMap<>();
+    
+    private Boolean isNullable = false;
+    
+    private Double nullProbability = 0.0;
+    
+    // Getters and setters
+}
+```
+
+### GenerationRequestDto
+```java
+public class GenerationRequestDto {
+    @NotNull(message = "Template ID is required")
+    private Long templateId;
+    
+    @Min(value = 1, message = "Row count must be at least 1")
+    private Integer rowCount;
+    
+    private Template.OutputFormat outputFormat;
+    
+    private String filename;
+    
+    // Getters and setters
+}
+```
+
+### BatchGenerationRequestDto
+```java
+public class BatchGenerationRequestDto {
+    @NotEmpty(message = "Template IDs list cannot be empty")
+    private List<Long> templateIds;
+    
+    @Min(value = 1, message = "Row count must be at least 1")
+    private Integer rowCount;
+    
+    private Template.OutputFormat outputFormat;
+    
+    private boolean parallel = false;
+    
+    // Getters and setters
+}
+```
+
+### GenerationScheduleDto
+```java
+public class GenerationScheduleDto {
+    private Long id;
+    
+    @NotNull(message = "Template ID is required")
+    private Long templateId;
+    
+    @NotBlank(message = "Schedule name is required")
+    private String name;
+    
+    private String description;
+    
+    @NotNull(message = "Row count is required")
+    @Min(value = 1, message = "Row count must be at least 1")
+    private Integer rowCount;
+    
+    @NotNull(message = "Output format is required")
+    private Template.OutputFormat outputFormat;
+    
+    private LocalDateTime nextRunTime;
+    
+    private String cronExpression;
+    
+    private GenerationSchedule.Status status;
+    
+    private LocalDateTime createdAt;
+    
+    private LocalDateTime updatedAt;
+    
+    private String createdBy;
+    
+    private LocalDateTime lastRunTime;
+    
+    private String lastRunResult;
+    
+    // Getters and setters
+}
+```
+
+## DataGenerator Interface and Implementation
+
+### DataGenerator Interface
+```java
+public interface DataGenerator {
+    /**
+     * Generates data based on provided constraints.
+     * 
+     * @param constraints Map of constraint name to constraint value
+     * @return Generated data as string
+     */
+    String generate(Map<String, Object> constraints);
+    
+    /**
+     * Returns the type of data this generator produces.
+     * This is used for registration and lookup in the generator registry.
+     * 
+     * @return The data type as a string (e.g., "firstName", "zipCode")
+     */
+    String getType();
+    
+    /**
+     * Returns metadata about supported constraints for this generator.
+     * This is used by the UI to dynamically build constraint forms.
+     * 
+     * @return Map of constraint name to constraint type (e.g., "minLength" -> "number")
+     */
+    Map<String, String> getConstraintsMetadata();
+    
+    /**
+     * Validates whether the provided constraints are valid for this generator.
+     * 
+     * @param constraints Map of constraint name to constraint value
+     * @return Optional with error message if invalid, empty if valid
+     */
+    Optional<String> validateConstraints(Map<String, Object> constraints);
+}
+```
+
+### AbstractDataGenerator
+```java
+public abstract class AbstractDataGenerator implements DataGenerator {
+    
+    private final String type;
+    
+    protected AbstractDataGenerator(String type) {
+        this.type = type;
+    }
+    
+    @Override
+    public String getType() {
+        return type;
+    }
+    
+    @Override
+    public Map<String, String> getConstraintsMetadata() {
+        // Default implementation returns empty map
+        // Override in subclasses to provide constraints
+        return new HashMap<>();
+    }
+    
+    @Override
+    public Optional<String> validateConstraints(Map<String, Object> constraints) {
+        // Default implementation accepts all constraints
+        // Override in subclasses for specific validation
+        return Optional.empty();
+    }
+    
+    /**
+     * Helper method to get a constraint value with type casting.
+     * 
+     * @param constraints The constraints map
+     * @param key The constraint key
+     * @param defaultValue Default value if constraint is not present
+     * @param <T> Type of the constraint value
+     * @return The constraint value or default if not present
+     */
+    @SuppressWarnings("unchecked")
+    protected <T> T getConstraint(Map<String, Object> constraints, String key, T defaultValue) {
+        Object value = constraints.get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        
+        try {
+            return (T) value;
+        } catch (ClassCastException e) {
+            return defaultValue;
+        }
+    }
+}
+```
+
+### DataGeneratorType Annotation
+```java
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+public @interface DataGeneratorType {
+    
+    /**
+     * The category this generator belongs to (e.g., "Personal", "Address", "Finance").
+     * Used for organizing generators in the UI.
+     */
+    String category() default "General";
+    
+    /**
+     * Human-readable name for this generator.
+     * If not provided, the generator type will be used.
+     */
+    String displayName() default "";
+    
+    /**
+     * Brief description of what this generator produces.
+     */
+    String description() default "";
+}
+```
+
+## Concrete Generator Implementations
+
+### StringGenerator
+```java
+@Component
+@DataGeneratorType(
+    category = "Text",
+    displayName = "String",
+    description = "Generates random text strings with configurable length or pattern"
+)
+public class StringGenerator extends AbstractDataGenerator {
+    
+    private static final String ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    private static final String ALPHANUMERIC = ALPHA + "0123456789";
+    private final Random random = new Random();
+    
+    public StringGenerator() {
+        super("string");
+    }
+    
+    @Override
+    public String generate(Map<String, Object> constraints) {
+        // Check if pattern is provided
+        String pattern = getConstraint(constraints, "pattern", "");
+        if (pattern != null && !pattern.isEmpty()) {
+            try {
+                Generex generex = new Generex(pattern);
+                return generex.random();
+            } catch (Exception e) {
+                // Fall back to length-based generation if pattern is invalid
+            }
+        }
+        
+        // Length-based generation
+        int minLength = getConstraint(constraints, "minLength", 5);
+        int maxLength = getConstraint(constraints, "maxLength", 10);
+        
+        // Ensure valid range
+        if (minLength < 0) minLength = 0;
+        if (maxLength < minLength) maxLength = minLength;
+        
+        // Determine character set
+        boolean alphaOnly = getConstraint(constraints, "alphaOnly", false);
+        String charSet = alphaOnly ? ALPHA : ALPHANUMERIC;
+        
+        // Generate random length between min and max
+        int length = minLength;
+        if (maxLength > minLength) {
+            length = minLength + random.nextInt(maxLength - minLength + 1);
+        }
+        
+        // Generate random string
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            int index = random.nextInt(charSet.length());
+            sb.append(charSet.charAt(index));
+        }
+        
+        return sb.toString();
+    }
+    
+    @Override
+    public Map<String, String> getConstraintsMetadata() {
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("pattern", "string");
+        metadata.put("minLength", "number");
+        metadata.put("maxLength", "number");
+        metadata.put("alphaOnly", "boolean");
+        return metadata;
+    }
+    
+    @Override
+    public Optional<String> validateConstraints(Map<String, Object> constraints) {
+        // Validation implementation
+        // ...
+    }
+}
+```
+
+### FirstNameGenerator
+```java
+@Component
+@DataGeneratorType(
+    category = "Personal",
+    displayName = "First Name",
+    description = "Generates random first names"
+)
+public class FirstNameGenerator extends AbstractDataGenerator {
+    
+    private final Faker faker;
+    
+    public FirstNameGenerator() {
+        super("firstName");
+        this.faker = new Faker();
+    }
+    
+    @Override
+    public String generate(Map<String, Object> constraints) {
+        String gender = getConstraint(constraints, "gender", "any");
+        
+        switch (gender.toLowerCase()) {
+            case "male":
+                return faker.name().firstName().replace(".", ""); // Avoid abbreviations
+            case "female":
+                return faker.name().firstName().replace(".", "");
+            default:
+                return faker.name().firstName().replace(".", "");
+        }
+    }
+    
+    @Override
+    public Map<String, String> getConstraintsMetadata() {
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("gender", "select:any,male,female");
+        return metadata;
+    }
+}
+```
+
+### DateGenerator
+```java
+@Component
+@DataGeneratorType(
+    category = "DateTime",
+    displayName = "Date",
+    description = "Generates random dates within a specified range"
+)
+public class DateGenerator extends AbstractDataGenerator {
+    
+    private static final String DEFAULT_FORMAT = "yyyy-MM-dd";
+    private static final LocalDate DEFAULT_MIN_DATE = LocalDate.now().minusYears(5);
+    private static final LocalDate DEFAULT_MAX_DATE = LocalDate.now();
+    
+    public DateGenerator() {
+        super("date");
+    }
+    
+    @Override
+    public String generate(Map<String, Object> constraints) {
+        // Parse min date
+        LocalDate minDate = parseDate(
+            getConstraint(constraints, "minDate", null),
+            DEFAULT_MIN_DATE
+        );
+        
+        // Parse max date
+        LocalDate maxDate = parseDate(
+            getConstraint(constraints, "maxDate", null),
+            DEFAULT_MAX_DATE
+        );
+        
+        // Ensure valid range
+        if (maxDate.isBefore(minDate)) {
+            maxDate = minDate;
+        }
+        
+        // Generate random date between min and max
+        long minDay = minDate.toEpochDay();
+        long maxDay = maxDate.toEpochDay();
+        long randomDay = ThreadLocalRandom.current().nextLong(minDay, maxDay + 1);
+        LocalDate randomDate = LocalDate.ofEpochDay(randomDay);
+        
+        // Format the date
+        String format = getConstraint(constraints, "format", DEFAULT_FORMAT);
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(format);
+            return randomDate.format(formatter);
+        } catch (IllegalArgumentException e) {
+            // Fall back to default format if custom format is invalid
+            return randomDate.format(DateTimeFormatter.ofPattern(DEFAULT_FORMAT));
+        }
+    }
+    
+    @Override
+    public Map<String, String> getConstraintsMetadata() {
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("minDate", "string");
+        metadata.put("maxDate", "string");
+        metadata.put("format", "string");
+        return metadata;
+    }
+    
+    // Other methods omitted for brevity
+}
+```
+
+## DataTypeRegistry
+
+```java
+@Component
+public class DataTypeRegistry {
+    
+    private static final Logger logger = LoggerFactory.getLogger(DataTypeRegistry.class);
+    
+    private final Map<String, DataGenerator> generators = new HashMap<>();
+    private final Map<String, Map<String, DataGenerator>> categorizedGenerators = new TreeMap<>();
+    
+    @Autowired
+    private ApplicationContext applicationContext;
+    
+    /**
+     * Initializes the registry by scanning for all DataGenerator beans.
+     */
+    @PostConstruct
+    public void init() {
+        Map<String, Object> generatorBeans = applicationContext.getBeansWithAnnotation(DataGeneratorType.class);
+        
+        for (Object bean : generatorBeans.values()) {
+            if (bean instanceof DataGenerator) {
+                DataGenerator generator = (DataGenerator) bean;
+                registerGenerator(generator);
+            }
+        }
+        
+        logger.info("Registered {} data generators", generators.size());
+    }
+    
+    /**
+     * Manually register a generator.
+     * 
+     * @param generator The generator to register
+     */
+    public void registerGenerator(DataGenerator generator) {
+        String type = generator.getType();
+        generators.put(type, generator);
+        
+        // Also organize by category
+        Class<?> generatorClass = generator.getClass();
+        if (generatorClass.isAnnotationPresent(DataGeneratorType.class)) {
+            DataGeneratorType annotation = generatorClass.getAnnotation(DataGeneratorType.class);
+            String category = annotation.category();
+            
+            categorizedGenerators.computeIfAbsent(category, k -> new TreeMap<>())
+                    .put(type, generator);
+        }
+        
+        logger.debug("Registered generator: {}", type);
+    }
+    
+    /**
+     * Get a generator by type.
+     * 
+     * @param type The generator type
+     * @return Optional containing the generator if found
+     */
+    public Optional<DataGenerator> getGenerator(String type) {
+        return Optional.ofNullable(generators.get(type));
+    }
+    
+    /**
+     * Get all registered generators.
+     * 
+     * @return Map of type to generator
+     */
+    public Map<String, DataGenerator> getAllGenerators() {
+        return new HashMap<>(generators);
+    }
+    
+    /**
+     * Get generators organized by category.
+     * 
+     * @return Map of category to map of type to generator
+     */
+    public Map<String, Map<String, DataGenerator>> getCategorizedGenerators() {
+        return new HashMap<>(categorizedGenerators);
+    }
+}
+```
+
+## Key Service Classes
+
+### DataGenerationService
+```java
+@Service
+public class DataGenerationService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(DataGenerationService.class);
+    
+    @Autowired
+    private TemplateRepository templateRepository;
+    
+    @Autowired
+    private DataTypeRegistry dataTypeRegistry;
+    
+    /**
+     * Generate data based on a template.
+     * 
+     * @param templateId The template ID
+     * @param rowCount The number of rows to generate
+     * @param outputFormat The output format (CSV, JSON, XML)
+     * @return Generated data as byte array
+     * @throws TemplateNotFoundException If template not found
+     * @throws DataGenerationException If generation fails
+     */
+    public byte[] generateData(Long templateId, int rowCount, Template.OutputFormat outputFormat) 
+            throws TemplateNotFoundException, DataGenerationException {
+        
+        Template template = templateRepository.findById(templateId)
+                .orElseThrow(() -> new TemplateNotFoundException("Template not found with ID: " + templateId));
+        
+        // Generate data rows
+        List<Map<String, String>> dataRows = generateDataRows(template, rowCount);
+        
+        // Format output
+        return formatOutput(dataRows, template, outputFormat);
+    }
+    
+    // Additional methods for generating rows, values, and formatting output
+    // ...
+}
+```
+
+### TemplateService
+```java
+@Service
+public class TemplateService {
+    
+    @Autowired
+    private TemplateRepository templateRepository;
+    
+    @Autowired
+    private DataTypeRegistry dataTypeRegistry;
+    
+    /**
+     * Create a new template.
+     * 
+     * @param templateDto The template DTO
+     * @return The created template DTO
+     */
+    @Transactional
+    public TemplateDto createTemplate(TemplateDto templateDto) {
+        Template template = mapToEntity(templateDto);
+        template.setCreatedAt(LocalDateTime.now());
+        template.setUpdatedAt(LocalDateTime.now());
+        
+        Template savedTemplate = templateRepository.save(template);
+        return mapToDto(savedTemplate);
+    }
+    
+    // Additional CRUD methods and utility methods
+    // ...
+}
+```
+
+### PDFAnalysisService
+```java
+@Service
+public class PDFAnalysisService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(PDFAnalysisService.class);
+    
+    // Regular expressions for identifying variables in text
+    private static final Pattern VAR_PATTERN = Pattern.compile("\\[\\[(.*?)\\]\\]|\\{\\{(.*?)\\}\\}|<(.*?)>|__(.*?)__");
+    
+    // Variable type mapping based on common naming patterns
+    private static final Map<String, String> TYPE_PATTERNS = new HashMap<>();
+    
+    static {
+        // Initialize common variable name patterns and their corresponding types
+        TYPE_PATTERNS.put("(?i).*name.*", "firstName");
+        TYPE_PATTERNS.put("(?i).*address.*", "streetAddress");
+        TYPE_PATTERNS.put("(?i).*city.*", "city");
+        TYPE_PATTERNS.put("(?i).*state.*", "state");
+        TYPE_PATTERNS.put("(?i).*zip.*|.*postal.*", "zipCode");
+        TYPE_PATTERNS.put("(?i).*email.*", "email");
+        TYPE_PATTERNS.put("(?i).*phone.*", "phoneNumber");
+        TYPE_PATTERNS.put("(?i).*date.*|.*dob.*", "date");
+        TYPE_PATTERNS.put("(?i).*amount.*|.*balance.*|.*payment.*", "currency");
+        TYPE_PATTERNS.put("(?i).*account.*|.*loan.*", "accountNumber");
+        TYPE_PATTERNS.put("(?i).*ssn.*|.*social.*security.*", "ssn");
+        TYPE_PATTERNS.put("(?i).*id.*number.*", "idNumber");
+    }
+    
+    /**
+     * Analyze a redline PDF and extract variables.
+     * 
+     * @param file The PDF file
+     * @return TemplateDto with extracted variables as column definitions
+     * @throws IOException If PDF processing fails
+     */
+    public TemplateDto analyzePDF(MultipartFile file) throws IOException {
+        // Implementation details omitted for brevity
+        // ...
+    }
+    
+    // Additional methods for extracting variables, inferring types, etc.
+    // ...
+}
+```
+
+### BatchGenerationService
+```java
+@Service
+public class BatchGenerationService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(BatchGenerationService.class);
+    
+    @Autowired
+    private DataGenerationService dataGenerationService;
+    
+    @Autowired
+    private TemplateRepository templateRepository;
+    
+    // Thread pool for parallel generation
+    private final ExecutorService executorService = Executors.newFixedThreadPool(
+            Math.max(2, Runtime.getRuntime().availableProcessors())
+    );
+    
+    /**
+     * Generate data for multiple templates in a batch.
+     * 
+     * @param templateIds List of template IDs
+     * @param rowCount Number of rows per template
+     * @param outputFormat Output format
+     * @param parallel Whether to generate in parallel
+     * @return List of batch generation results
+     * @throws TemplateNotFoundException If any template is not found
+     * @throws DataGenerationException If generation fails
+     */
+    public List<BatchGenerationResultDto> generateBatch(
+            List<Long> templateIds,
+            Integer rowCount,
+            Template.OutputFormat outputFormat,
+            boolean parallel) throws TemplateNotFoundException, DataGenerationException {
+        
+        // Implementation details omitted for brevity
+        // ...
+    }
+    
+    // Additional methods for sequential/parallel generation and result extraction
+    // ...
+}
+```
+
+### ScheduleService
+```java
+@Service
+public class ScheduleService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(ScheduleService.class);
+    
+    @Autowired
+    private GenerationScheduleRepository scheduleRepository;
+    
+    @Autowired
+    private TemplateRepository templateRepository;
+    
+    /**
+     * Create a new generation schedule.
+     * 
+     * @param scheduleDto The schedule DTO
+     * @return The created schedule DTO
+     * @throws TemplateNotFoundException If template not found
+     * @throws IllegalArgumentException If cron expression is invalid
+     */
+    @Transactional
+    public GenerationScheduleDto createSchedule(GenerationScheduleDto scheduleDto) 
+            throws TemplateNotFoundException, IllegalArgumentException {
+        
+        // Implementation details omitted for brevity
+        // ...
+    }
+    
+    // Additional CRUD and utility methods
+    // ...
+}
+```
+
+## Controller Classes
+
+### TemplateController
+```java
+@RestController
+@RequestMapping("/api/templates")
+public class TemplateController {
+    
+    @Autowired
+    private TemplateService templateService;
+    
+    /**
+     * Create a new template.
+     * 
+     * @param templateDto The template DTO
+     * @return The created template
+     */
+    @PostMapping
+    public ResponseEntity<TemplateDto> createTemplate(@Valid @RequestBody TemplateDto templateDto) {
+        TemplateDto createdTemplate = templateService.createTemplate(templateDto);
+        return new ResponseEntity<>(createdTemplate, HttpStatus.CREATED);
+    }
+    
+    // Additional CRUD endpoints
+    // ...
+}
+```
+
+### DataGenerationController
+```java
+@RestController
+@RequestMapping("/api/generate")
+public class DataGenerationController {
+    
+    @Autowired
+    private DataGenerationService dataGenerationService;
+    
+    /**
+     * Generate data based on a template.
+     * 
+     * @param generationRequest The generation request DTO
+     * @return The generated data as a file download
+     */
+    @PostMapping
+    public ResponseEntity<byte[]> generateData(@Valid @RequestBody GenerationRequestDto generationRequest) {
+        // Implementation details omitted for brevity
+        // ...
+    }
+    
+    // Additional endpoints
+    // ...
+}
+```
+
+### BatchController
+```java
+@RestController
+@RequestMapping("/api/batch")
+public class BatchController {
+    
+    @Autowired
+    private BatchGenerationService batchGenerationService;
+    
+    /**
+     * Generate data for multiple templates in a batch.
+     * 
+     * @param request The batch generation request
+     * @return Batch generation results
+     */
+    @PostMapping("/generate")
+    public ResponseEntity<?> batchGenerate(@Valid @RequestBody BatchGenerationRequestDto request) {
+        // Implementation details omitted for brevity
+        // ...
+    }
+}
+```
+
+### ScheduleController
+```java
+@RestController
+@RequestMapping("/api/schedules")
+public class ScheduleController {
+    
+    @Autowired
+    private ScheduleService scheduleService;
+    
+    /**
+     * Create a new generation schedule.
+     * 
+     * @param scheduleDto The schedule DTO
+     * @return The created schedule
+     */
+    @PostMapping
+    public ResponseEntity<?> createSchedule(@Valid @RequestBody GenerationScheduleDto scheduleDto) {
+        // Implementation details omitted for brevity
+        // ...
+    }
+    
+    // Additional CRUD and management endpoints
+    // ...
+}
+```
+
+### PDFAnalysisController
+```java
+@RestController
+@RequestMapping("/api/pdf")
+public class PDFAnalysisController {
+    
+    private static final Logger logger = LoggerFactory.getLogger(PDFAnalysisController.class);
+    
+    @Autowired
+    private PDFAnalysisService pdfAnalysisService;
+    
+    /**
+     * Analyze a redline PDF and extract variables.
+     * 
+     * @param file The PDF file
+     * @return Template with extracted variables
+     */
+    @PostMapping("/analyze")
+    public ResponseEntity<?> analyzePDF(@RequestParam("file") MultipartFile file) {
+        // Implementation details omitted for brevity
+        // ...
+    }
+}
+```
+
+## Repository Interfaces
+
+### TemplateRepository
+```java
+@Repository
+public interface TemplateRepository extends JpaRepository<Template, Long> {
+    
+    /**
+     * Find a template by name.
+     * 
+     * @param name The template name
+     * @return Optional containing the template if found
+     */
+    Optional<Template> findByName(String name);
+    
+    /**
+     * Find templates created by a specific user.
+     * 
+     * @param createdBy The username
+     * @return List of templates
+     */
+    List<Template> findByCreatedBy(String createdBy);
+    
+    /**
+     * Find templates by name containing a substring.
+     * 
+     * @param nameSubstring The substring to search for
+     * @return List of matching templates
+     */
+    List<Template> findByNameContainingIgnoreCase(String nameSubstring);
+    
+    /**
+     * Find templates that have a specific column type.
+     * 
+     * @param columnType The column type to search for
+     * @return List of templates
+     */
+    @Query("SELECT DISTINCT t FROM Template t JOIN t.columnDefinitions c WHERE c.type = :columnType")
+    List<Template> findByColumnType(String columnType);
+}
+```
+
+### GenerationScheduleRepository
+```java
+@Repository
+public interface GenerationScheduleRepository extends JpaRepository<GenerationSchedule, Long> {
+    
+    /**
+     * Find schedules for a specific template.
+     * 
+     * @param templateId The template ID
+     * @return List of schedules
+     */
+    List<GenerationSchedule> findByTemplateId(Long templateId);
+    
+    /**
+     * Find active schedules with next run time before or equal to a given time.
+     * 
+     * @param time The time to compare against
+     * @return List of schedules that are due to run
+     */
+    @Query("SELECT s FROM GenerationSchedule s WHERE s.status = 'ACTIVE' AND s.nextRunTime <= :time")
+    List<GenerationSchedule> findSchedulesDueToRun(LocalDateTime time);
+    
+    /**
+     * Find schedules by status.
+     * 
+     * @param status The status to filter by
+     * @return List of schedules
+     */
+    List<GenerationSchedule> findByStatus(GenerationSchedule.Status status);
+    
+    /**
+     * Find schedules created by a specific user.
+     * 
+     * @param createdBy The username
+     * @return List of schedules
+     */
+    List<GenerationSchedule> findByCreatedBy(String createdBy);
+}
+```
+
+### SchedulerConfig
+```java
+@Configuration
+@EnableScheduling
+public class SchedulerConfig {
+    
+    /**
+     * Create and configure Quartz scheduler.
+     * 
+     * @return Configured Quartz scheduler
+     * @throws SchedulerException If scheduler initialization fails
+     */
+    @Bean
+    public Scheduler scheduler() throws SchedulerException {
+        StdSchedulerFactory factory = new StdSchedulerFactory();
+        Scheduler scheduler = factory.getScheduler();
+        scheduler.start();
+        return scheduler;
+    }
+}
+```
+
+### SchedulerService
+```java
+@Service
+public class SchedulerService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(SchedulerService.class);
+    
+    @Autowired
+    private Scheduler scheduler;
+    
+    @Autowired
+    private ScheduleService scheduleService;
+    
+    /**
+     * Initialize scheduler on application startup.
+     */
+    @PostConstruct
+    public void init() {
+        try {
+            // Clear any existing jobs
+            scheduler.clear();
+            
+            // Restore active schedules
+            List<GenerationScheduleDto> activeSchedules = scheduleService.getSchedulesByStatus(GenerationSchedule.Status.ACTIVE);
+            
+            logger.info("Initializing scheduler with {} active schedules", activeSchedules.size());
+            
+            for (GenerationScheduleDto schedule : activeSchedules) {
+                scheduleJob(schedule);
+            }
+        } catch (Exception e) {
+            logger.error("Error initializing scheduler: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Schedule a job for a generation schedule.
+     * 
+     * @param schedule The schedule DTO
+     * @throws SchedulerException If scheduling fails
+     */
+    public void scheduleJob(GenerationScheduleDto schedule) throws SchedulerException {
+        String jobId = "job_" + schedule.getId();
+        String triggerId = "trigger_" + schedule.getId();
+        
+        // Create job
+        JobDetail job = JobBuilder.newJob(GenerationJob.class)
+                .withIdentity(jobId)
+                .usingJobData("scheduleId", schedule.getId())
+                .usingJobData("outputFormat", schedule.getOutputFormat().toString())
+                .storeDurably()
+                .build();
+        
+        // Create trigger
+        Trigger trigger;
+        
+        if (schedule.getCronExpression() != null && !schedule.getCronExpression().isEmpty()) {
+            // For cron-based schedules
+            trigger = TriggerBuilder.newTrigger()
+                    .withIdentity(triggerId)
+                    .forJob(job)
+                    .withSchedule(CronScheduleBuilder.cronSchedule(schedule.getCronExpression()))
+                    .build();
+            
+            logger.info("Scheduling job with cron expression: {}", schedule.getCronExpression());
+        } else if (schedule.getNextRunTime() != null) {
+            // For one-time schedules
+            Date startTime = Date.from(schedule.getNextRunTime().atZone(ZoneId.systemDefault()).toInstant());
+            
+            trigger = TriggerBuilder.newTrigger()
+                    .withIdentity(triggerId)
+                    .forJob(job)
+                    .startAt(startTime)
+                    .build();
+            
+            logger.info("Scheduling one-time job at: {}", schedule.getNextRunTime());
+        } else {
+            throw new SchedulerException("Schedule must have either cron expression or next run time");
+        }
+        
+        // Schedule the job
+        scheduler.scheduleJob(job, trigger);
+    }
+    
+    /**
+     * Unschedule a job for a generation schedule.
+     * 
+     * @param scheduleId The schedule ID
+     * @throws SchedulerException If unscheduling fails
+     */
+    public void unscheduleJob(Long scheduleId) throws SchedulerException {
+        String jobId = "job_" + scheduleId;
+        String triggerId = "trigger_" + scheduleId;
+        
+        scheduler.unscheduleJob(TriggerKey.triggerKey(triggerId));
+        scheduler.deleteJob(JobKey.jobKey(jobId));
+        
+        logger.info("Unscheduled job for schedule ID: {}", scheduleId);
+    }
+    
+    /**
+     * Update schedule status and job scheduling.
+     * 
+     * @param scheduleId The schedule ID
+     * @param active Whether the schedule should be active
+     * @throws ScheduleNotFoundException If schedule not found
+     * @throws SchedulerException If scheduler operation fails
+     */
+    public void updateScheduleStatus(Long scheduleId, boolean active) 
+            throws ScheduleNotFoundException, SchedulerException {
+        
+        GenerationScheduleDto schedule = scheduleService.getSchedule(scheduleId);
+        
+        if (active) {
+            schedule.setStatus(GenerationSchedule.Status.ACTIVE);
+            scheduleService.updateSchedule(scheduleId, schedule);
+            scheduleJob(schedule);
+        } else {
+            schedule.setStatus(GenerationSchedule.Status.PAUSED);
+            scheduleService.updateSchedule(scheduleId, schedule);
+            unscheduleJob(scheduleId);
+        }
+    }
+    
+    /**
+     * Execute job immediately, regardless of schedule.
+     * 
+     * @param scheduleId The schedule ID
+     * @throws ScheduleNotFoundException If schedule not found
+     * @throws SchedulerException If job execution fails
+     */
+    public void executeJobNow(Long scheduleId) throws ScheduleNotFoundException, SchedulerException {
+        GenerationScheduleDto schedule = scheduleService.getSchedule(scheduleId);
+        
+        String jobId = "job_" + scheduleId;
+        
+        // Create job data map
+        JobDataMap dataMap = new JobDataMap();
+        dataMap.put("scheduleId", scheduleId);
+        dataMap.put("outputFormat", schedule.getOutputFormat().toString());
+        
+        // Execute job
+        scheduler.triggerJob(JobKey.jobKey(jobId), dataMap);
+        
+        logger.info("Triggered immediate execution of job for schedule ID: {}", scheduleId);
+    }
+    
+    /**
+     * Periodically check for schedules that need to be run.
+     * This handles schedules with nextRunTime but no cron expression.
+     */
+    @Scheduled(fixedRate = 60000) // Check every minute
+    public void checkSchedules() {
+        logger.debug("Checking for schedules due to run");
+        
+        try {
+            List<Long> dueSchedules = scheduleService.findSchedulesDueToRun();
+            
+            for (Long scheduleId : dueSchedules) {
+                try {
+                    logger.info("Executing schedule that is due: {}", scheduleId);
+                    executeJobNow(scheduleId);
+                    
+                    // For non-recurring schedules, mark as completed after execution
+                    GenerationScheduleDto schedule = scheduleService.getSchedule(scheduleId);
+                    if (schedule.getCronExpression() == null || schedule.getCronExpression().isEmpty()) {
+                        schedule.setStatus(GenerationSchedule.Status.COMPLETED);
+                        scheduleService.updateSchedule(scheduleId, schedule);
+                    }
+                } catch (Exception e) {
+                    logger.error("Error executing due schedule {}: {}", scheduleId, e.getMessage(), e);
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error checking for due schedules: {}", e.getMessage(), e);
+        }
+    }
+}
+```
+
+### GenerationJob
+```java
+@Component
+public class GenerationJob implements Job {
+    
+    private static final Logger logger = LoggerFactory.getLogger(GenerationJob.class);
+    
+    @Autowired
+    private DataGenerationService dataGenerationService;
+    
+    @Autowired
+    private ScheduleService scheduleService;
+    
+    @Override
+    public void execute(JobExecutionContext context) throws JobExecutionException {
+        JobDataMap dataMap = context.getJobDetail().getJobDataMap();
+        Long scheduleId = dataMap.getLong("scheduleId");
+        
+        logger.info("Executing scheduled generation job for schedule ID: {}", scheduleId);
+        
+        try {
+            // Get schedule details
+            GenerationSchedule.Status originalStatus = null;
+            Long templateId = null;
+            int rowCount = 0;
+            GenerationSchedule.Status scheduleStatus = null;
+            
+            try {
+                GenerationSchedule schedule = scheduleService.getScheduleEntity(scheduleId);
+                originalStatus = schedule.getStatus();
+                templateId = schedule.getTemplate().getId();
+                rowCount = schedule.getRowCount();
+                scheduleStatus = schedule.getStatus();
+            } catch (ScheduleNotFoundException e) {
+                logger.error("Schedule not found for ID: {}", scheduleId);
+                return;
+            }
+            
+            // Check if schedule is active
+            if (scheduleStatus != GenerationSchedule.Status.ACTIVE) {
+                logger.info("Skipping job execution because schedule is not active. Status: {}", scheduleStatus);
+                return;
+            }
+            
+            // Generate data
+            byte[] data = dataGenerationService.generateData(
+                    templateId,
+                    rowCount,
+                    dataMap.getString("outputFormat")
+            );
+            
+            // Save data to file
+            String filename = saveGeneratedData(data, scheduleId, dataMap.getString("outputFormat"));
+            
+            // Update schedule with success result
+            scheduleService.updateLastRunInfo(scheduleId, "Generated " + rowCount + " rows, saved to " + filename);
+            
+            // Update next run time for recurring schedules
+            scheduleService.updateNextRunTime(scheduleId);
+            
+            logger.info("Scheduled generation completed successfully for schedule ID: {}", scheduleId);
+        } catch (Exception e) {
+            logger.error("Error executing scheduled generation job: {}", e.getMessage(), e);
+            
+            try {
+                // Update schedule with error result
+                scheduleService.updateLastRunInfo(scheduleId, "Error: " + e.getMessage());
+            } catch (ScheduleNotFoundException ex) {
+                logger.error("Could not update schedule with error info", ex);
+            }
+            
+            throw new JobExecutionException(e);
+        }
+    }
+    
+    /**
+     * Save generated data to a file.
+     * 
+     * @param data The generated data
+     * @param scheduleId The schedule ID
+     * @param outputFormat The output format
+     * @return The filename
+     * @throws IOException If file saving fails
+     */
+    private String saveGeneratedData(byte[] data, Long scheduleId, String outputFormat) throws IOException {
+        // Ensure output directory exists
+        Path outputDir = Paths.get("generated-data");
+        if (!Files.exists(outputDir)) {
+            Files.createDirectories(outputDir);
+        }
+        
+        // Create filename with timestamp
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        String extension = outputFormat.toLowerCase();
+        String filename = String.format("schedule_%d_%s.%s", scheduleId, timestamp, extension);
+        
+        File outputFile = new File(outputDir.toFile(), filename);
+        
+        // Write data to file
+        try (FileOutputStream fos = new FileOutputStream(outputFile)) {
+            fos.write(data);
+        }
+        
+        return outputFile.getAbsolutePath();
+    }
+}
+```
+
+## Exception Classes
+
+### CustomExceptions
+```java
+/**
+ * Exception thrown when a template is not found.
+ */
+public class TemplateNotFoundException extends RuntimeException {
+    
+    public TemplateNotFoundException(String message) {
+        super(message);
+    }
+    
+    public TemplateNotFoundException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+
+/**
+ * Exception thrown when a schedule is not found.
+ */
+class ScheduleNotFoundException extends RuntimeException {
+    
+    public ScheduleNotFoundException(String message) {
+        super(message);
+    }
+    
+    public ScheduleNotFoundException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+
+/**
+ * Exception thrown when data generation fails.
+ */
+class DataGenerationException extends RuntimeException {
+    
+    public DataGenerationException(String message) {
+        super(message);
+    }
+    
+    public DataGenerationException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+
+/**
+ * Exception thrown when PDF analysis fails.
+ */
+class PDFAnalysisException extends RuntimeException {
+    
+    public PDFAnalysisException(String message) {
+        super(message);
+    }
+    
+    public PDFAnalysisException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+
+/**
+ * Exception thrown when a validation error occurs.
+ */
+class ValidationException extends RuntimeException {
+    
+    public ValidationException(String message) {
+        super(message);
+    }
+    
+    public ValidationException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+```
+
+### GlobalExceptionHandler
+```java
+@ControllerAdvice
+public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+    
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    
+    /**
+     * Handle TemplateNotFoundException.
+     */
+    @ExceptionHandler(TemplateNotFoundException.class)
+    public ResponseEntity<Object> handleTemplateNotFoundException(
+            TemplateNotFoundException ex, WebRequest request) {
+        
+        Map<String, Object> body = createErrorBody(
+                HttpStatus.NOT_FOUND, ex.getMessage(), request);
+        
+        return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
+    }
+    
+    /**
+     * Handle ScheduleNotFoundException.
+     */
+    @ExceptionHandler(ScheduleNotFoundException.class)
+    public ResponseEntity<Object> handleScheduleNotFoundException(
+            ScheduleNotFoundException ex, WebRequest request) {
+        
+        Map<String, Object> body = createErrorBody(
+                HttpStatus.NOT_FOUND, ex.getMessage(), request);
+        
+        return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
+    }
+    
+    // Additional exception handlers omitted for brevity
+    
+    /**
+     * Create a standardized error response body.
+     */
+    private Map<String, Object> createErrorBody(HttpStatus status, String message, WebRequest request) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", status.value());
+        body.put("error", status.getReasonPhrase());
+        body.put("message", message);
+        body.put("path", request.getDescription(false).replace("uri=", ""));
+        
+        return body;
+    }
+}
+```
+
+## Output Format Handling
+
+### CSV Format
+```java
+private void formatCsv(List<Map<String, String>> dataRows, ByteArrayOutputStream outputStream) throws IOException {
+    if (dataRows.isEmpty()) {
+        return;
+    }
+    
+    // Write header
+    Set<String> headers = dataRows.get(0).keySet();
+    outputStream.write(String.join(",", headers).getBytes(StandardCharsets.UTF_8));
+    outputStream.write('\n');
+    
+    // Write rows
+    for (Map<String, String> row : dataRows) {
+        List<String> values = new ArrayList<>();
+        
+        for (String header : headers) {
+            String value = row.get(header);
+            
+            // Handle null values and escaping
+            if (value == null) {
+                values.add("");
+            } else if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+                // Escape quotes by doubling them and wrap in quotes
+                String escaped = value.replace("\"", "\"\"");
+                values.add("\"" + escaped + "\"");
+            } else {
+                values.add(value);
+            }
+        }
+        
+        outputStream.write(String.join(",", values).getBytes(StandardCharsets.UTF_8));
+        outputStream.write('\n');
+    }
+}
+```
+
+### JSON Format
+```java
+private void formatJson(List<Map<String, String>> dataRows, ByteArrayOutputStream outputStream) throws IOException {
+    StringBuilder json = new StringBuilder();
+    json.append("[\n");
+    
+    for (int i = 0; i < dataRows.size(); i++) {
+        Map<String, String> row = dataRows.get(i);
+        json.append("  {\n");
+        
+        int j = 0;
+        for (Map.Entry<String, String> entry : row.entrySet()) {
+            json.append("    \"").append(entry.getKey()).append("\": ");
+            
+            if (entry.getValue() == null) {
+                json.append("null");
+            } else {
+                json.append("\"").append(escapeJsonString(entry.getValue())).append("\"");
+            }
+            
+            if (j < row.size() - 1) {
+                json.append(",");
+            }
+            json.append("\n");
+            j++;
+        }
+        
+        json.append("  }");
+        if (i < dataRows.size() - 1) {
+            json.append(",");
+        }
+        json.append("\n");
+    }
+    
+    json.append("]\n");
+    outputStream.write(json.toString().getBytes(StandardCharsets.UTF_8));
+}
+
+private String escapeJsonString(String input) {
+    return input.replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+            .replace("\b", "\\b")
+            .replace("\f", "\\f")
+            .replace("\n", "\\n")
+            .replace("\r", "\\r")
+            .replace("\t", "\\t");
+}
+```
+
+### XML Format
+```java
+private void formatXml(List<Map<String, String>> dataRows, String rootElementName, ByteArrayOutputStream outputStream) 
+        throws IOException {
+    
+    StringBuilder xml = new StringBuilder();
+    xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+    
+    // Sanitize root element name for XML
+    String sanitizedRootName = sanitizeXmlName(rootElementName);
+    
+    xml.append("<").append(sanitizedRootName).append(">\n");
+    
+    for (Map<String, String> row : dataRows) {
+        xml.append("  <row>\n");
+        
+        for (Map.Entry<String, String> entry : row.entrySet()) {
+            String columnName = sanitizeXmlName(entry.getKey());
+            xml.append("    <").append(columnName).append(">");
+            
+            if (entry.getValue() != null) {
+                xml.append(escapeXmlString(entry.getValue()));
+            }
+            
+            xml.append("</").append(columnName).append(">\n");
+        }
+        
+        xml.append("  </row>\n");
+    }
+    
+    xml.append("</").append(sanitizedRootName).append(">\n");
+    outputStream.write(xml.toString().getBytes(StandardCharsets.UTF_8));
+}
+
+private String sanitizeXmlName(String name) {
+    // XML names must start with a letter or underscore
+    String sanitized = name.replaceAll("[^a-zA-Z0-9_.-]", "_");
+    
+    // If first character is not a letter or underscore, prepend underscore
+    if (!sanitized.matches("^[a-zA-Z_].*")) {
+        sanitized = "_" + sanitized;
+    }
+    
+    return sanitized;
+}
+
+private String escapeXmlString(String input) {
+    return input.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&apos;");
+}
+```
+
+## Configuration Properties
+
+### application.properties
+```properties
+# Server configuration
+server.port=8080
+server.servlet.context-path=/tdg
+
+# Database Configuration (H2 for development)
+spring.datasource.url=jdbc:h2:file:./data/tdg
+spring.datasource.driverClassName=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=password
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+spring.h2.console.enabled=true
+spring.h2.console.path=/h2-console
+
+# JPA/Hibernate configuration
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=false
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.open-in-view=false
+
+# File upload configuration
+spring.servlet.multipart.max-file-size=10MB
+spring.servlet.multipart.max-request-size=10MB
+
+# Logging configuration
+logging.level.root=INFO
+logging.level.com.example.tdg=DEBUG
+logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n
+
+# Output directory for scheduled generations
+tdg.output.directory=generated-data
+
+# Enable response compression
+server.compression.enabled=true
+server.compression.mime-types=text/html,text/xml,text/plain,text/css,application/javascript,application/json,application/xml
+server.compression.min-response-size=1024
+
+# Actuator endpoints
+management.endpoints.web.exposure.include=health,info,metrics
+management.endpoint.health.show-details=when_authorized
+```
+
+## Maven Dependencies
+
+### pom.xml (Key Dependencies)
+```xml
+<dependencies>
+    <!-- Spring Boot Starters -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+
+    <!-- Database -->
+    <dependency>
+        <groupId>com.h2database</groupId>
+        <artifactId>h2</artifactId>
+        <scope>runtime</scope>
+    </dependency>
+
+    <!-- Java Faker for generating realistic test data -->
+    <dependency>
+        <groupId>com.github.javafaker</groupId>
+        <artifactId>javafaker</artifactId>
+        <version>1.0.2</version>
+    </dependency>
+
+    <!-- Generex for regex-based string generation -->
+    <dependency>
+        <groupId>com.github.mifmif</groupId>
+        <artifactId>generex</artifactId>
+        <version>1.0.2</version>
+    </dependency>
+
+    <!-- Quartz Scheduler for scheduling jobs -->
+    <dependency>
+        <groupId>org.quartz-scheduler</groupId>
+        <artifactId>quartz</artifactId>
+        <version>2.3.2</version>
+    </dependency>
+
+    <!-- Apache PDFBox for PDF analysis -->
+    <dependency>
+        <groupId>org.apache.pdfbox</groupId>
+        <artifactId>pdfbox</artifactId>
+        <version>2.0.28</version>
+    </dependency>
+
+    <!-- JSON processing -->
+    <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-jsr310</artifactId>
+    </dependency>
+
+    <!-- XML processing -->
+    <dependency>
+        <groupId>com.fasterxml.jackson.dataformat</groupId>
+        <artifactId>jackson-dataformat-xml</artifactId>
+    </dependency>
+
+    <!-- CSV processing -->
+    <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-csv</artifactId>
+        <version>1.9.0</version>
+    </dependency>
+</dependencies>
+```
+
+This technical reference provides specific implementation details of the key components, methods, parameters, and data structures used in the Test Data Generator application.
