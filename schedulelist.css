@@ -1,0 +1,91 @@
+.schedule-list {
+  width: 100%;
+}
+
+.header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.header-actions h2 {
+  margin: 0;
+  font-weight: 600;
+  color: #111827;
+}
+
+.filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.search-input {
+  flex: 1;
+  max-width: 400px;
+}
+
+.status-filter {
+  width: 200px;
+}
+
+.status-select {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid #d1d5db;
+  background-color: #fff;
+  font-size: 0.875rem;
+}
+
+.schedule-name-link {
+  color: #2563eb;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.schedule-name-link:hover {
+  text-decoration: underline;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Status badge styling */
+.badge.success {
+  background-color: #10b981;
+}
+
+.badge.warning {
+  background-color: #f59e0b;
+}
+
+.badge.info {
+  background-color: #3b82f6;
+}
+
+.badge.danger {
+  background-color: #ef4444;
+}
+
+.badge.default {
+  background-color: #6b7280;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .filters {
+    flex-direction: column;
+  }
+  
+  .search-input {
+    max-width: 100%;
+  }
+  
+  .status-filter {
+    width: 100%;
+  }
+}
