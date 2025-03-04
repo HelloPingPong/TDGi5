@@ -1,0 +1,245 @@
+.column-definition-form {
+  margin-bottom: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  background-color: #fff;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.column-definition-form:hover {
+  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* Column Header */
+.column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 0.375rem 0.375rem 0 0;
+}
+
+.column-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+.column-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.25rem;
+  background-color: #e5e7eb;
+  color: #4b5563;
+  font-weight: 600;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.column-name {
+  font-weight: 600;
+  color: #111827;
+}
+
+.column-type {
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: normal;
+}
+
+.column-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.column-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  background-color: transparent;
+  border: none;
+  border-radius: 0.25rem;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.column-action-button:hover {
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+.column-action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.column-action-button.delete:hover {
+  background-color: #fee2e2;
+  color: #ef4444;
+}
+
+.column-toggle-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  background-color: #e5e7eb;
+  border: none;
+  border-radius: 0.25rem;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 0.5rem;
+}
+
+.column-toggle-button:hover {
+  background-color: #d1d5db;
+  color: #374151;
+}
+
+/* Column Details (expanded view) */
+.column-details {
+  padding: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.column-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.column-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .column-form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.column-form-field {
+  width: 100%;
+}
+
+/* Constraints Section */
+.column-constraints {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.constraint-section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+}
+
+.constraint-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.constraint-field {
+  width: 100%;
+}
+
+/* Checkbox styling */
+.constraint-checkbox {
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding-left: 1.75rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  user-select: none;
+  color: #374151;
+}
+
+.constraint-checkbox input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkmark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 1rem;
+  width: 1rem;
+  background-color: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+}
+
+.constraint-checkbox:hover input ~ .checkmark {
+  background-color: #f9fafb;
+}
+
+.constraint-checkbox input:checked ~ .checkmark {
+  background-color: #2563eb;
+  border-color: #2563eb;
+}
+
+.checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+.constraint-checkbox input:checked ~ .checkmark:after {
+  display: block;
+}
+
+.constraint-checkbox .checkmark:after {
+  left: 0.3125rem;
+  top: 0.125rem;
+  width: 0.25rem;
+  height: 0.5rem;
+  border: solid white;
+  border-width: 0 0.125rem 0.125rem 0;
+  transform: rotate(45deg);
+}
+
+/* Form Group */
+.form-group {
+  margin-bottom: 0.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+/* Additional utillity classes */
+.mt-4 {
+  margin-top: 1rem;
+}
